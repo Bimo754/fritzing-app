@@ -15,12 +15,19 @@
 
 
 message("Using fritzing ngspice detect script.")
-NGSPICEPATH = ../../ngspice-42
-NGSPICEPATH = $$absolute_path($${NGSPICEPATH})
 
-exists($$NGSPICEPATH) {
-	message("found $${NGSPICEPATH}")
-	INCLUDEPATH += $$NGSPICEPATH/include
+unix:!macx {
+	# On linux, libngspice0-dev installs headers to /usr/include/ngspice/sharedspice.h
+	# which is in standard paths, so we do not need to add anything.
+	message("Using system ngspice headers")
 } else {
-    error("ngspice not found in $${NGSPICEPATH}")
+	NGSPICEPATH = ../../ngspice-42
+	NGSPICEPATH = $$absolute_path($${NGSPICEPATH})
+
+	exists($$NGSPICEPATH) {
+		message("found $${NGSPICEPATH}")
+		INCLUDEPATH += $$NGSPICEPATH/include
+	} else {
+		error("ngspice not found in $${NGSPICEPATH}")
+	}
 }

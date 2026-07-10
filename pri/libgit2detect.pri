@@ -60,29 +60,26 @@ win32 {
 }
 
 unix {
-	LIBGIT2LIB = $$LIBGITPATH/lib
-	if ($$LIBGIT_STATIC) {
+	!macx {
+		CONFIG += link_pkgconfig
+		PKGCONFIG += libgit2
+	} else {
+		LIBGIT2LIB = $$LIBGITPATH/lib
+		if ($$LIBGIT_STATIC) {
 
-		exists($$LIBGIT2LIB/libgit2.a) {
-			message("found libgit2 library in $$LIBGIT2LIB")
-		} else {
-			error("static libgit2 library not found in $$LIBGIT2LIB")
-		}
-		INCLUDEPATH += $$LIBGITPATH/include
-		macx {
+			exists($$LIBGIT2LIB/libgit2.a) {
+				message("found libgit2 library in $$LIBGIT2LIB")
+			} else {
+				error("static libgit2 library not found in $$LIBGIT2LIB")
+			}
+			INCLUDEPATH += $$LIBGITPATH/include
 			LIBS += $$LIBGIT2LIB/libgit2.a -framework Security
 		} else {
-			LIBS += $$LIBGIT2LIB/libgit2.a -lssl -lcrypto
-		}
-	} else {
-		message("Enabled dynamic linking of libgit2 $$LIBGIT_VERSION")
-		INCLUDEPATH += $$LIBGITPATH/include
-		LIBS += -L$$LIBGIT2LIB -lgit2
-		!macx {
+			message("Enabled dynamic linking of libgit2 $$LIBGIT_VERSION")
+			INCLUDEPATH += $$LIBGITPATH/include
+			LIBS += -L$$LIBGIT2LIB -lgit2
 			QMAKE_RPATHDIR += $$LIBGIT2LIB
 		}
-		#PKG_CONFIG_PATH=$$LIBGITPATH/lib/pkgconfig:$$PKG_CONFIG_PATH
-		#PKGCONFIG += libgit2
 	}
 }
 

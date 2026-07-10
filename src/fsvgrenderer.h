@@ -76,6 +76,7 @@ public:
 	bool fastLoad(const QByteArray & contents);
 	QByteArray finalLoad(QByteArray & cleanContents, const QString & filename);
 	constexpr const QString & filename() const noexcept { return m_filename; }
+	const QByteArray & svgContent() const noexcept { return m_svgContent; }
 	QSizeF defaultSizeF();
 	bool setUpConnector(class SvgIdLayer * svgIdLayer, bool ignoreTerminalPoint, ViewLayer::ViewLayerPlacement);
 	QList<SvgIdLayer *> setUpNonConnectors(ViewLayer::ViewLayerPlacement);
@@ -110,6 +111,7 @@ protected:
 	QSizeF m_defaultSizeF;
 	QHash<QString, ConnectorInfo *> m_connectorInfoHash;
 	QHash<QString, ConnectorInfo *> m_nonConnectorInfoHash;
+	QByteArray m_svgContent;
 
 public:
 	static QString NonConnectorName;

@@ -28,6 +28,7 @@ along with Fritzing.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <QTextStream>
 #include <QPainter>
+#include <QRegularExpression>
 #include <QCoreApplication>
 #include <QtGlobal>
 #include <QFileInfo>
@@ -191,6 +192,7 @@ QByteArray FSvgRenderer::finalLoad(QByteArray & cleanContents, const QString & f
 	result = QSvgRenderer::load(cleanContents);
 	if (result) {
 		m_filename = filename;
+		m_svgContent = cleanContents;
 		return cleanContents;
 	}
 
@@ -198,6 +200,7 @@ QByteArray FSvgRenderer::finalLoad(QByteArray & cleanContents, const QString & f
 }
 
 bool FSvgRenderer::fastLoad(const QByteArray & contents) {
+	m_svgContent = contents;
 	return QSvgRenderer::load(contents);
 }
 
@@ -219,7 +222,23 @@ QPixmap * FSvgRenderer::getPixmap(QSvgRenderer * renderer, QSize size)
 		newW = newH * def.width() / def.height();
 	}
 	QRectF bounds((size.width() - newW) / 2.0, (size.height() - newH) / 2.0, newW, newH);
-	renderer->render(&painter, bounds);
+
+	// To prevent crash in Qt6 font rendering (QTBUG-145310) when rendering at small sizes,
+	// strip <text> tags from the SVG before rendering.
+	if (frenderer != nullptr && !frenderer->svgContent().isEmpty()) {
+		QString contentStr = QString::fromUtf8(frenderer->svgContent());
+		QRegularExpression textTagRegex("<text\\b[^>]*>.*?</text>", QRegularExpression::DotMatchesEverythingOption);
+		contentStr.replace(textTagRegex, "");
+		QSvgRenderer tempRenderer;
+		if (tempRenderer.load(contentStr.toUtf8())) {
+			tempRenderer.render(&painter, bounds);
+		} else {
+			renderer->render(&painter, bounds);
+		}
+	} else {
+		renderer->render(&painter, bounds);
+	}
+
 	painter.end();
 
 	return pixmap;

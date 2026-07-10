@@ -54,6 +54,7 @@ along with Fritzing.  If not, see <http://www.gnu.org/licenses/>.
 #include <QApplication>
 #include <QClipboard>
 #include <qmath.h>
+#include <iostream>
 
 /////////////////////////////////
 
@@ -2243,7 +2244,20 @@ QPixmap * ItemBase::getPixmap(ViewLayer::ViewID vid, bool swappingEnabled, QSize
 		return nullptr;
 	}
 
-	QSvgRenderer renderer(filename);
+	QFile file(filename);
+	if (!file.open(QIODevice::ReadOnly)) {
+		return nullptr;
+	}
+	QString contentStr = QString::fromUtf8(file.readAll());
+	file.close();
+
+	QRegularExpression textTagRegex("<text\\b[^>]*>.*?</text>", QRegularExpression::DotMatchesEverythingOption);
+	contentStr.replace(textTagRegex, "");
+
+	QSvgRenderer renderer;
+	if (!renderer.load(contentStr.toUtf8())) {
+		return nullptr;
+	}
 
 	auto * pixmap = new QPixmap(size);
 	pixmap->fill(Qt::transparent);

@@ -46,6 +46,48 @@ Since 2019, the project is maintained by Kjell Morgenstern, with great support f
 
 The Fritzing app is written on top of the [Qt cross-platform framework](http://qt-project.org).
 
+## Compiling and Running on Linux (Qt6)
+
+Fritzing can be built on Linux (Debian, Ubuntu, Kali, etc.) using system packages and Qt6.
+
+### 1. Install Dependencies
+Install the required Qt6 libraries and build dependencies using your package manager:
+```bash
+sudo apt-get install -y \
+  qt6-base-dev \
+  qt6-serialport-dev \
+  qt6-svg-dev \
+  qt6-5compat-dev \
+  qt6-tools-dev-tools \
+  libgit2-dev \
+  libngspice0-dev \
+  libquazip1-qt6-dev \
+  libpolyclipping-dev \
+  libboost-dev \
+  libsvgpp-dev
+```
+
+### 2. Clone the Parts Library
+Fritzing requires the parts library to run correctly. Clone `fritzing-parts` as a sibling directory to your `fritzing-app` directory:
+```bash
+git clone --depth 1 https://github.com/fritzing/fritzing-parts.git ../fritzing-parts
+```
+
+### 3. Build Fritzing
+Perform an out-of-source build using `qmake6`:
+```bash
+mkdir build
+cd build
+qmake6 ../phoenix.pro
+make -j$(nproc)
+```
+
+### 4. Launch the Application
+Run the executable and point it to the parts library directory:
+```bash
+./build/Fritzing -parts ../fritzing-parts
+```
+
 ## Licensing
 
 The source code of Fritzing is under GNU GPL v3, the documentation and part designs under Creative Commons Attribution-ShareALike 3.0 Unported. The full texts of these licenses are shipped with this download.

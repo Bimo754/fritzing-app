@@ -22,6 +22,7 @@ along with Fritzing.  If not, see <http://www.gnu.org/licenses/>.
 #include <QScrollBar>
 #include <QSettings>
 #include <QGestureEvent>
+#include <QInputDevice>
 
 #include "zoomablegraphicsview.h"
 #include "../utils/zoomslider.h"
@@ -32,7 +33,11 @@ const int ZoomableGraphicsView::MaxScaleValue = 3000;
 
 
 ZoomableGraphicsView::WheelMapping ZoomableGraphicsView::m_wheelMapping =
-#ifdef Q_OS_WIN
+#if defined(Q_OS_LINUX)
+    Guess;
+#elif defined(Q_OS_MACOS)
+    Pure;
+#elif defined(Q_OS_WINDOWS) || defined(Q_OS_WIN)
     ZoomPrimary;
 #else
     ScrollPrimary;
@@ -54,18 +59,20 @@ ZoomableGraphicsView::ZoomableGraphicsView( QWidget * parent )
 		QSettings settings;
 		m_wheelMapping = (WheelMapping) settings.value("wheelMapping", m_wheelMapping).toInt();
 		if (m_wheelMapping >= WheelMappingCount) {
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX)
 			m_wheelMapping = Guess;
-#endif
-#ifdef Q_OS_MACOS
+#elif defined(Q_OS_MACOS)
 			m_wheelMapping = Pure;
-#endif
-#ifdef Q_OS_WINDOWS
+#elif defined(Q_OS_WINDOWS) || defined(Q_OS_WIN)
 			m_wheelMapping = ZoomPrimary;
+#else
+			m_wheelMapping = ScrollPrimary;
 #endif
 		}
 	}
 	grabGesture(Qt::PinchGesture);
+	viewport()->grabGesture(Qt::PinchGesture);
+	viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
 }
 
 bool ZoomableGraphicsView::event(QEvent *event) {
@@ -74,18 +81,14 @@ bool ZoomableGraphicsView::event(QEvent *event) {
 	return QGraphicsView::event(event);
 }
 
+bool ZoomableGraphicsView::viewportEvent(QEvent *event) {
+	if (event->type() == QEvent::Gesture) {
+		return gestureEvent(static_cast<QGestureEvent*>(event));
+	}
+	return QGraphicsView::viewportEvent(event);
+}
+
 void ZoomableGraphicsView::wheelEvent(QWheelEvent* event) {
-//	qDebug() << "angleDelta" << event->angleDelta();
-//	qDebug() << "pixelDelta" << event->pixelDelta();
-//	qDebug() << "phase" << event->phase();
-//	qDebug() << "source" << event->source();
-//	qDebug() << "inverted" << event->inverted();
-//	qDebug() << "device type" << event->deviceType();
-//	qDebug() << "device name" << event->device()->name();
-//	qDebug() << "device seat name" << event->device()->seatName();
-//	qDebug() << "capabilities" << event->device()->capabilities();
-//	qDebug() << "has pixelscroll" << event->device()->hasCapability(QInputDevice::Capability::PixelScroll);
-//	qDebug() << "system id" << event->device()->systemId();
 	qint64 systemId =  event->device()->systemId();
 
 	if (!m_acceptWheelEvents) {
@@ -107,8 +110,13 @@ void ZoomableGraphicsView::wheelEvent(QWheelEvent* event) {
 //		qDebug() << "scroll primary";
 		doZoom = (control || alt);
 		if (!doZoom) {
-			doVertical = !shift;
-			doHorizontal = shift;
+			if (event->angleDelta().x() != 0 && event->angleDelta().y() == 0) {
+				doHorizontal = true;
+				doVertical = false;
+			} else {
+				doVertical = !shift;
+				doHorizontal = shift;
+			}
 		} else {
 			dampen = shift;
 		}
@@ -117,8 +125,13 @@ void ZoomableGraphicsView::wheelEvent(QWheelEvent* event) {
 //		qDebug() << "zoom primary";
 		doZoom = !(control || alt);
 		if (!doZoom) {
-			doVertical = !shift;
-			doHorizontal = shift;
+			if (event->angleDelta().x() != 0 && event->angleDelta().y() == 0) {
+				doHorizontal = true;
+				doVertical = false;
+			} else {
+				doVertical = !shift;
+				doHorizontal = shift;
+			}
 		} else {
 			dampen = shift;
 		}
@@ -130,6 +143,13 @@ void ZoomableGraphicsView::wheelEvent(QWheelEvent* event) {
 		doZoom = (control || alt);
 		dampen = shift;
 		if (systemId == m_guessTouchpadId) break; // We already detected a touchpad
+		
+		// If the device is explicitly a touchpad, lock to it immediately!
+		if (event->device() && event->device()->type() == QInputDevice::DeviceType::TouchPad) {
+			m_guessTouchpadId = systemId;
+			break;
+		}
+
 		// TODO: What about "wheels" with a left and right button?
 		// The 'buttons' are ignored, but maybe some special wheels report this as an axis?
 		if (event->angleDelta().x() != 0) {
@@ -144,14 +164,34 @@ void ZoomableGraphicsView::wheelEvent(QWheelEvent* event) {
 			m_guessTouchpadId = systemId;
 			break;
 		}
-		// Probably a real wheel, treat similar to "zoom primary"
+		// Probably a real wheel, treat similar to "zoom primary" (on Windows) or "scroll primary" (on Linux/Mac)
 		do2d = false;
+#if defined(Q_OS_WIN) || defined(Q_OS_WINDOWS)
 		doZoom = !(control || alt);
 		if (!doZoom) {
-			doVertical = !shift;
-			doHorizontal = shift;
+			if (event->angleDelta().x() != 0 && event->angleDelta().y() == 0) {
+				doHorizontal = true;
+				doVertical = false;
+			} else {
+				doVertical = !shift;
+				doHorizontal = shift;
+			}
 			dampen = true;
 		}
+#else
+		doZoom = (control || alt);
+		if (!doZoom) {
+			if (event->angleDelta().x() != 0 && event->angleDelta().y() == 0) {
+				doHorizontal = true;
+				doVertical = false;
+			} else {
+				doVertical = !shift;
+				doHorizontal = shift;
+			}
+		} else {
+			dampen = shift;
+		}
+#endif
 		break;
 	case Pure:
 //		qDebug() << "pure";
@@ -164,6 +204,9 @@ void ZoomableGraphicsView::wheelEvent(QWheelEvent* event) {
 	}
 
 	int numSteps = event->angleDelta().y();
+	if (doHorizontal && event->angleDelta().x() != 0 && event->angleDelta().y() == 0) {
+		numSteps = event->angleDelta().x();
+	}
 	if (dampen) {
 //		qDebug() << "dampen";
 		numSteps /= 8;
@@ -284,9 +327,12 @@ void ZoomableGraphicsView::setViewFromBelow(bool viewFromBelow) {
 }
 
 bool ZoomableGraphicsView::gestureEvent(QGestureEvent *event) {
-	if (QGesture *pinch = event->gesture(Qt::PinchGesture))
+	if (QGesture *pinch = event->gesture(Qt::PinchGesture)) {
 		pinchTriggered(static_cast<QPinchGesture *>(pinch));
-	return true;
+		event->accept(Qt::PinchGesture);
+		return true;
+	}
+	return false;
 }
 
 void ZoomableGraphicsView::pinchTriggered(QPinchGesture *gesture) {

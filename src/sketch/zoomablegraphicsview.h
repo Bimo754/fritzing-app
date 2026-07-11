@@ -66,6 +66,7 @@ protected:
 	virtual void wheelEvent(QWheelEvent* event);
 	bool gestureEvent(QGestureEvent *event);
 	void pinchTriggered(QPinchGesture *gesture);
+	bool viewportEvent(QEvent *event) override;
 
 protected:
 	double m_scaleValue;
